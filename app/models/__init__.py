@@ -19,7 +19,7 @@ def build_registry(settings: Settings) -> Dict[str, TTSModel]:
     """
     registry: Dict[str, TTSModel] = {}
 
-    for name in settings.enabled_models:
+    for name in settings.enabled_model_list:
         logger.info("loading_model", extra={"model": name})
         if name == "qwen3-tts":
             model = QwenTTSModel(

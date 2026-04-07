@@ -6,9 +6,8 @@ match .env.example; override by editing .env or exporting env vars.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Literal
+from typing import List, Literal, get_args
 
-from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,12 +29,14 @@ class Settings(BaseSettings):
     log_level: str = "info"
 
     # ---- Auth ----
-    api_keys: List[str] = Field(default_factory=lambda: ["dev-local-key-change-me"])
+    # We store the raw string (comma-separated) here instead of List[str] to
+    # sidestep pydantic-settings' habit of JSON-decoding env values for list
+    # fields. The `api_key_list` property below splits it on demand. Same trick
+    # for `enabled_models` below.
+    api_keys: str = "dev-local-key-change-me"
 
     # ---- Models ----
-    enabled_models: List[ModelName] = Field(
-        default_factory=lambda: ["qwen3-tts", "fish-s1-mini"]
-    )
+    enabled_models: str = "qwen3-tts,fish-s1-mini"
     hf_home: str = "/models_cache/huggingface"
     transformers_cache: str = "/models_cache/huggingface"
 
@@ -59,13 +60,27 @@ class Settings(BaseSettings):
     # boots without a GPU. Used for local dev and CI.
     use_mock_models: bool = False
 
-    @field_validator("api_keys", "enabled_models", mode="before")
-    @classmethod
-    def _split_csv(cls, v):
-        """Allow comma-separated env values for list fields."""
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return v
+    @property
+    def api_key_list(self) -> List[str]:
+        """Parsed view of `api_keys` (comma-separated env var)."""
+        return [k.strip() for k in self.api_keys.split(",") if k.strip()]
+
+    @property
+    def enabled_model_list(self) -> List[ModelName]:
+        """Parsed view of `enabled_models`, validated against ModelName."""
+        valid = set(get_args(ModelName))
+        out: List[ModelName] = []
+        for raw in self.enabled_models.split(","):
+            name = raw.strip()
+            if not name:
+                continue
+            if name not in valid:
+                raise ValueError(
+                    f"Unknown model in ENABLED_MODELS: {name!r}. "
+                    f"Valid options: {sorted(valid)}"
+                )
+            out.append(name)  # type: ignore[arg-type]
+        return out
 
 
 @lru_cache(maxsize=1)
