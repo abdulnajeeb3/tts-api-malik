@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Model cache (downloaded weights — keep out of git)
+.cache/
+models_cache/
+huggingface/
+checkpoints/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Generated audio (benchmarks, test output)
+benchmark/output/
+*.wav
+*.mp3
+*.opus
+*.flac
+!benchmark/samples/*.wav
+
+# Logs & metrics
+logs/
+*.log
+metrics/*.jsonl
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Original plan PDF stays local
+tts_api_build_plan.pdf
