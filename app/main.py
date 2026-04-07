@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info(
         "startup",
-        extra={"enabled_models": settings.enabled_models, "mock": settings.use_mock_models},
+        extra={"enabled_models": settings.enabled_model_list, "mock": settings.use_mock_models},
     )
 
     # Model loading is blocking + slow; run it off the event loop so the
@@ -94,9 +94,10 @@ async def require_api_key(
     x_api_key: Optional[str] = Header(default=None),
 ) -> None:
     settings: Settings = request.app.state.settings
-    if not settings.api_keys:
+    keys = settings.api_key_list
+    if not keys:
         return  # auth disabled (should never ship to prod like this)
-    if x_api_key is None or x_api_key not in settings.api_keys:
+    if x_api_key is None or x_api_key not in keys:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="missing or invalid X-API-Key",
@@ -220,12 +221,13 @@ async def stream_speech(websocket: WebSocket) -> None:
     # Auth for WebSocket: support either a `?api_key=` query param or an
     # `X-API-Key` header (some clients can't set headers on WS).
     settings: Settings = websocket.app.state.settings
-    if settings.api_keys:
+    keys = settings.api_key_list
+    if keys:
         provided = (
             websocket.query_params.get("api_key")
             or websocket.headers.get("x-api-key")
         )
-        if provided not in settings.api_keys:
+        if provided not in keys:
             await websocket.close(code=4401)  # custom: unauthorized
             return
 
