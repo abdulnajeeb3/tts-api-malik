@@ -1,0 +1,73 @@
+"""Runtime configuration loaded from environment variables.
+
+All settings are parsed once at import time via pydantic-settings. Defaults
+match .env.example; override by editing .env or exporting env vars.
+"""
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import List, Literal
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ModelName = Literal["qwen3-tts", "fish-s1-mini"]
+StreamFormat = Literal["pcm", "opus"]
+RestFormat = Literal["mp3", "wav", "opus", "flac"]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # ---- Server ----
+    host: str = "0.0.0.0"
+    port: int = 8000
+    log_level: str = "info"
+
+    # ---- Auth ----
+    api_keys: List[str] = Field(default_factory=lambda: ["dev-local-key-change-me"])
+
+    # ---- Models ----
+    enabled_models: List[ModelName] = Field(
+        default_factory=lambda: ["qwen3-tts", "fish-s1-mini"]
+    )
+    hf_home: str = "/models_cache/huggingface"
+    transformers_cache: str = "/models_cache/huggingface"
+
+    qwen_model_id: str = "Qwen/Qwen3-TTS"
+    qwen_device: str = "cuda:0"
+
+    fish_model_id: str = "fishaudio/fish-speech-1.5"
+    fish_device: str = "cuda:0"
+
+    # ---- Audio defaults ----
+    default_sample_rate: int = 24000
+    default_stream_format: StreamFormat = "pcm"
+    default_rest_format: RestFormat = "mp3"
+
+    # ---- Concurrency ----
+    inference_workers: int = 8
+    max_concurrent_streams: int = 10
+
+    # ---- Dev ----
+    # When true, models are replaced with a sine-wave generator so the server
+    # boots without a GPU. Used for local dev and CI.
+    use_mock_models: bool = False
+
+    @field_validator("api_keys", "enabled_models", mode="before")
+    @classmethod
+    def _split_csv(cls, v):
+        """Allow comma-separated env values for list fields."""
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()

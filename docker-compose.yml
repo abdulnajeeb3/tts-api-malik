@@ -1,0 +1,38 @@
+services:
+  tts-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tts-api-malik:latest
+    container_name: tts-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      # Persist HuggingFace model cache across container restarts.
+      - models_cache:/models_cache
+      # Benchmark outputs written to host for inspection.
+      - ./benchmark/output:/app/benchmark/output
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+volumes:
+  models_cache:
+    driver: local
