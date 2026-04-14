@@ -1,7 +1,7 @@
 # Vast.ai Benchmark Status
 
-> Updated on **April 13, 2026** after completing the first remote bakeoff for
-> Qwen3-TTS and Chatterbox on Vast.ai.
+> Updated on **April 14, 2026** with the benchmark results plus the repo-side
+> follow-up work that was pushed after the bakeoff.
 
 ---
 
@@ -31,6 +31,9 @@
   calls validated here.
 - The benchmark remains the last fully validated real-model run; the new
   FastAPI serving path still needs a fresh GPU smoke test.
+- The pushed repo checkpoint associated with this follow-up work is:
+  - branch `main`
+  - commit `204f238`
 
 ---
 
