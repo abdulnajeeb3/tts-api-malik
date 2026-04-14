@@ -318,15 +318,62 @@ Most important technical finding:
 
 ---
 
+---
+
+## FastAPI Smoke Test (April 14, 2026)
+
+After the direct-package benchmark, the real FastAPI serving path was validated
+on the same RTX 4090 instance.
+
+### Chatterbox FastAPI smoke test
+
+All three endpoints hit from a local Mac against `http://71.104.167.38:52328`:
+
+| Endpoint | Result | Detail |
+|---|---|---|
+| `GET /health` | 200 OK | `{"status": "ok", "model": "chatterbox", "loaded": true}` |
+| `POST /v1/audio/speech` | 200 OK | 186 KB WAV, 2.2s wall time |
+| `WS /v1/audio/stream` | OK | 15 binary chunks, 101 KB, TTFA 1.1s |
+
+VRAM utilization at load time: **3.47 / 23.52 GB** — well within RTX 4090 capacity.
+
+Round-trip latency from local Mac (US → NJ Vast instance → back):
+- REST: **2.7s** for a 4-second phrase
+- WS TTFA: **1.1s** (first audio chunk)
+
+### Launch path used
+
+Service was started via `/workspace/launch_chatterbox.sh` with cuDNN library
+path fix:
+
+```bash
+export LD_LIBRARY_PATH=\
+/workspace/venvs/chatterbox/lib/python3.11/site-packages/nvidia/cudnn/lib:\
+...
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
+```
+
+The same LD_LIBRARY_PATH fix that was needed for the direct-package benchmark
+is also required for the FastAPI path.
+
+### Qwen3-TTS FastAPI smoke test
+
+Not yet done. The direct-package benchmark passed, but the FastAPI wrapper
+has not been started and hit on GPU.
+
+---
+
 ## Next Recommended Steps
 
-1. Listen to the pulled WAVs in `benchmark/vast_4090_2026-04-13/`.
-2. Build either `tts-api-qwen` or `tts-api-chatterbox` on GPU.
-3. Smoke-test `/v1/audio/speech` and `WS /v1/audio/stream`.
-4. Send the active base URL to the friend for subjective judgment.
-3. Investigate Qwen's slow path on this box:
+1. Listen to `benchmark/vast_4090_2026-04-13/chatterbox_full_output/*.wav` and
+   get the friend's subjective quality feedback.
+2. If Chatterbox quality is accepted:
+   - Stop investigating Qwen latency for now
+   - Focus on productionizing Chatterbox on Azure (pending T4 quota approval)
+3. If more comparison is needed, run the Qwen3-TTS service via FastAPI on the
+   same instance and compare.
+4. Investigate Qwen's slow path when the time comes:
    - confirm official recommended runtime flags
-   - compare package path vs repo path
-   - check whether a streaming/community path reproduces the advertised numbers
-4. Finish the real Chatterbox serving path in the FastAPI app.
-5. Shut down instance `34883373` when done to stop the hourly charge.
+   - try `flash_attention_2` attention impl
+   - check whether streaming/community path reproduces advertised numbers
+5. **Shut down instance `34883373`** when done to stop the $0.39/hr charge.
