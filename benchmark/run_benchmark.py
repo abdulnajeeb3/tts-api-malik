@@ -1,4 +1,4 @@
-"""A/B benchmark for both TTS models.
+"""Benchmark the API-level TTS models currently exposed by the server.
 
 Usage (from repo root, inside the container or venv):
 
@@ -42,7 +42,7 @@ except ImportError:
 from rich.console import Console
 from rich.table import Table
 
-MODELS = ["qwen3-tts", "fish-s1-mini"]
+MODELS = ["qwen3-tts"]
 console = Console()
 
 

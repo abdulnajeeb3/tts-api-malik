@@ -1,135 +1,275 @@
 # TTS API (Malik)
 
-Production TTS API serving two open-source models — **Qwen3-TTS** and **Fish Speech S1-mini** — behind a WebSocket streaming endpoint and an OpenAI-compatible REST endpoint. Target: sub-200ms TTFA, 5–10 concurrent streams, Dockerized, deployed on an Azure GPU VM in `eastus` (same region as the friend's voice-agent infra).
+Self-hosted TTS API scaffold for replacing ElevenLabs with open-source models.
+The current code direction is **Qwen3-TTS + Chatterbox**, and the runtime
+architecture is now **one model per service**. Fish has been removed from the
+scaffold. The app still does **not** expose a plug-and-play
+ElevenLabs-compatible endpoint, but it now has real model wrapper
+implementations for separate Qwen and Chatterbox services.
 
-> This is a learning-oriented repo. Every subdirectory has its own `README.md` explaining what lives there and why. Start here, then drill down.
+Start with:
+
+- [documentation/PROJECT_STATUS.md](documentation/PROJECT_STATUS.md)
+- [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
+- [documentation/TTS_MODELS_RESEARCH_V2.md](documentation/TTS_MODELS_RESEARCH_V2.md)
+- [documentation/FRIEND_TESTING_GUIDE.md](documentation/FRIEND_TESTING_GUIDE.md)
 
 ---
 
-## Repo layout
+## Current State
 
-```
+- The FastAPI scaffold works in **mock mode** on a laptop.
+- The current API surface is:
+  - `GET /health`
+  - `POST /v1/audio/speech`
+  - `WS /v1/audio/stream`
+- That surface is **OpenAI-style/internal**, not ElevenLabs-compatible yet.
+- The repo now assumes **separate per-model runtimes**, not one mixed Python
+  environment.
+- Real model inference is now wired through the official model packages for
+  both Qwen and Chatterbox.
+- The codebase now names **Qwen3-TTS + Chatterbox** as the target pair.
+- Only **Qwen3-TTS** is enabled by default today.
+- Chatterbox now has the same app-level serving contract as Qwen, but each
+  model must run in its own service.
+- WebSocket streaming is active through the existing synth-then-chunk fallback.
+- Native low-TTFA streaming is still future work.
+- A first real GPU benchmark was completed on Vast.ai and the outputs were
+  pulled into the repo.
+
+If your goal is "give my friend an endpoint they can swap in for ElevenLabs",
+the remaining work is:
+
+1. Boot the per-model service you want to test.
+2. Expose whichever per-model service is under test.
+3. Add an ElevenLabs-compatible shim layer if the friend wants drop-in swap
+   behavior later.
+
+---
+
+## Repo Layout
+
+```text
 TTS-API-Malik/
-├── README.md                  ← you are here
-├── Dockerfile                 ← CUDA 12.1 runtime image
-├── docker-compose.yml         ← one-command local / VM run
-├── requirements.txt           ← Python deps (torch comes from CUDA index in the Dockerfile)
-├── .env.example               ← copy to .env and fill in
-├── app/                       ← the FastAPI application
-│   ├── README.md              ← tour of the app package
-│   ├── main.py                ← FastAPI entrypoint + routes + lifespan
-│   ├── config.py              ← pydantic-settings loader
-│   ├── metrics.py              ← TTFA / active-connection tracking
-│   ├── audio_utils.py         ← PCM conversion + container encoding
-│   ├── streaming.py           ← WebSocket handler
-│   └── models/                ← TTS model wrappers
-│       ├── README.md
-│       ├── base.py            ← abstract TTSModel + TTSRequest
-│       ├── qwen_tts.py        ← Qwen3-TTS wrapper
-│       └── fish_tts.py        ← Fish Speech S1-mini wrapper
-├── benchmark/                 ← A/B latency + quality benchmark
+├── README.md
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── requirements.runtime.txt
+├── requirements.qwen.txt
+├── requirements.chatterbox.txt
+├── .env.example
+├── app/
 │   ├── README.md
-│   ├── test_phrases.txt       ← 10 medical booking phrases
-│   └── run_benchmark.py       ← runs every phrase on every model
+│   ├── main.py
+│   ├── config.py
+│   ├── metrics.py
+│   ├── audio_utils.py
+│   ├── streaming.py
+│   └── models/
+│       ├── README.md
+│       ├── base.py
+│       ├── qwen_tts.py
+│       └── chatterbox_tts.py
+├── benchmark/
+│   ├── README.md
+│   ├── run_benchmark.py
+│   ├── direct_model_bakeoff.py
+│   ├── test_phrases.txt
+│   └── vast_4090_2026-04-13/
 └── documentation/
-    ├── AZURE_SETUP.md         ← VM provisioning + SSH handoff guide
-    └── TTS_MODELS_RESEARCH.md ← field survey of open-source TTS candidates
+    ├── PROJECT_STATUS.md
+    ├── VAST_BENCHMARK_STATUS.md
+    ├── TTS_MODELS_RESEARCH_V2.md
+    └── AZURE_SETUP.md
 ```
 
 ---
 
-## Endpoints
+## API Surface Today
 
-| Method | Path                  | Purpose                                                  |
-| ------ | --------------------- | -------------------------------------------------------- |
-| GET    | `/health`             | Model status, GPU memory, active connections. Unauthed.  |
-| POST   | `/v1/audio/speech`    | OpenAI-compatible REST TTS (mp3/wav/opus/flac response). |
-| WS     | `/v1/audio/stream`    | Chunked streaming TTS (PCM16 24kHz mono by default).     |
+### Current implemented routes
 
-All non-health routes require an `X-API-Key` header (or `?api_key=` query param on the WebSocket). Keys come from the `API_KEYS` env var (comma-separated).
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/health` | Model + GPU + connection snapshot |
+| `POST` | `/v1/audio/speech` | OpenAI-style REST TTS shape |
+| `WS` | `/v1/audio/stream` | Binary audio chunks over WebSocket |
 
-### REST — drop-in OpenAI compat
+Auth today:
 
-```bash
-curl -X POST http://localhost:8000/v1/audio/speech \
-  -H "X-API-Key: dev-local-key-change-me" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"fish-s1-mini","input":"Your appointment is confirmed","voice":"default","response_format":"mp3"}' \
-  --output test.mp3
-```
+- `X-API-Key` header for REST
+- `X-API-Key` header or `?api_key=` query param for WebSocket
 
-Equivalent Python using the OpenAI SDK:
+Important:
 
-```python
-from openai import OpenAI
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="dev-local-key-change-me")
-audio = client.audio.speech.create(model="qwen3-tts", voice="default", input="Hello")
-audio.stream_to_file("test.mp3")
-```
-
-### WebSocket — streaming
-
-Client sends one JSON frame, then receives binary audio frames, then one final JSON frame with TTFA/total metrics. Full protocol documented in [app/streaming.py](app/streaming.py).
+- This is **not** the same contract as ElevenLabs.
+- A client currently using ElevenLabs endpoints will need a compatibility shim
+  before it becomes plug-and-play.
 
 ---
 
-## Running it
+## What Works Right Now
 
-### On a laptop (mock mode — no GPU)
+### Local mock mode
 
-Your MacBook can't host the models, but you can still boot the server end-to-end to test the API shape. `USE_MOCK_MODELS=1` swaps both wrappers for a sine-wave generator so nothing is downloaded and no CUDA is needed.
+You can boot the full server without a GPU:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env: set USE_MOCK_MODELS=1
+# set USE_MOCK_MODELS=1
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Then hit `http://localhost:8000/health` and try the `curl` above.
+This is useful for:
 
-### On the Azure GPU VM (real models)
+- request/response validation
+- auth checks
+- encoding paths
+- WebSocket protocol testing
 
-See [documentation/AZURE_SETUP.md](documentation/AZURE_SETUP.md) for provisioning, SSH setup, and handoff. The short version once the VM is up and this repo is cloned on it:
+It is **not** useful for judging real voice quality or latency.
+
+### Separate model services
+
+The repo now uses separate dependency stacks per model.
+
+Compose services:
+
+- `tts-api-qwen` on host port `8000`
+- `tts-api-chatterbox` on host port `8001`
+
+Typical usage:
 
 ```bash
-cp .env.example .env          # edit API_KEYS, leave USE_MOCK_MODELS=0
-docker compose up -d --build
-curl http://localhost:8000/health
+# Qwen service
+docker compose up -d tts-api-qwen
+
+# Chatterbox service
+docker compose up -d tts-api-chatterbox
+
+# Stop one before focusing on the other if you only want one active test target
+docker compose stop tts-api-qwen
+docker compose stop tts-api-chatterbox
 ```
 
+This is deliberate:
+
+- Qwen and Chatterbox do not currently coexist cleanly in one shared Python env
+- the same issue would recur as more models are added
+- separate model services scale better for benchmarking and testing
+- the API contract stays stable even if the runtime stack changes per model
+
+### Real serving path
+
+Both model wrappers now call the same package-level APIs that already worked in
+the direct benchmark:
+
+- Qwen uses `qwen_tts.Qwen3TTSModel.from_pretrained(...).generate_custom_voice(...)`
+- Chatterbox uses `ChatterboxTTS.from_pretrained(...).generate(...)`
+
+The app-level contract is therefore:
+
+- REST works through `POST /v1/audio/speech`
+- streaming works through `WS /v1/audio/stream`
+- each service should load exactly one model
+
+Important caveat:
+
+- this coding pass implemented the real wrappers, but the full FastAPI path
+  still needs a fresh GPU smoke test on the target runtime
+- the direct-package benchmark is still the last fully validated real run
+
+### Real benchmark artifacts
+
+The first real GPU comparison lives in:
+
+- [benchmark/vast_4090_2026-04-13](benchmark/vast_4090_2026-04-13)
+
+See:
+
+- [benchmark/README.md](benchmark/README.md)
+- [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
+
 ---
 
-## Build phases (in order — do not skip)
+## What Does Not Work Yet
 
-The plan PDF defines a strict build order. Each phase exists to de-risk the next:
+### ElevenLabs compatibility
 
-1. **Phase 1 — Models run.** Verify both models install and generate a single audio file. Current status: wrappers scaffolded, real inference call is marked `TODO(phase-1)` and will be filled in on the GPU VM.
-2. **Phase 2 — REST endpoint.** `POST /v1/audio/speech` — already wired, uses `model.synthesize()`.
-3. **Phase 3 — WebSocket streaming.** Native chunked generation per model. Currently falls back to synth-then-chunk.
-4. **Phase 4 — Concurrency.** Load test 5 simultaneous streams, tune thread pool, watch GPU memory.
-5. **Phase 5 — Docker + deploy.** Already containerized; deploy to Azure GPU VM in `eastus`.
-6. **Phase 6 — Hand off to friend** for real-traffic testing.
+The repo does **not** yet expose:
+
+- ElevenLabs-style REST paths
+- ElevenLabs-style auth (`xi-api-key`)
+- ElevenLabs voice ID mapping
+- ElevenLabs-style HTTP streaming endpoints
+
+### Native streaming
+
+WebSocket streaming is active now, but it is currently the fallback path:
+
+- synthesize the full waveform
+- chunk it into PCM frames
+- send those frames over the socket
+
+That means the streaming API is usable for integration testing, but it will
+not yet reproduce the low-TTFA story promised by native model streaming.
+
+### Model tuning / validation
+
+Fish has been removed from the scaffold.
+
+The current target model names are:
+
+- `qwen3-tts`
+- `chatterbox`
+
+But only `qwen3-tts` is enabled by default in shared local config. Docker
+compose overrides `ENABLED_MODELS` per service.
+
+Also:
+
+- Chatterbox voice selection is still server-config driven, not client-driven
+- Qwen voice selection maps to the request's `voice` field or the configured
+  default speaker
+- both real wrappers should be re-smoke-tested on GPU before treating them as
+  production-ready
 
 ---
 
-## Cost model (from the plan)
+## Recommended Reading Order
 
-| Item                  | Cost          | Notes                             |
-| --------------------- | ------------- | --------------------------------- |
-| Azure A10 VM          | $550/mo       | `NC8as_A10_v4`, always-on         |
-| Storage               | $20/mo        | 128GB managed disk                |
-| Bandwidth             | $30–50/mo     | Audio egress                      |
-| **Infra total**       | **~$620/mo**  |                                   |
-| Charge to friend      | $2,000/mo     | Friend saves ~$1,500 vs ElevenLabs |
-| Margin                | ~$1,380/mo    | ~$16,560/year                      |
+1. [documentation/PROJECT_STATUS.md](documentation/PROJECT_STATUS.md)
+2. [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
+3. [documentation/TTS_MODELS_RESEARCH_V2.md](documentation/TTS_MODELS_RESEARCH_V2.md)
+4. [app/README.md](app/README.md)
+5. [app/models/README.md](app/models/README.md)
 
 ---
 
-## Where to look when something breaks
+## Where To Look Next
 
-- **Server won't start:** check `app.state.models` got populated — look at the `startup` log line for enabled_models + mock flag.
-- **`501 Not Implemented` from REST:** the real model inference call isn't filled in yet (Phase 1 TODO). Either run with `USE_MOCK_MODELS=1` or implement `_generate_waveform()` on the GPU VM.
-- **`401` on streaming:** API key missing — pass `?api_key=…` on the WS URL.
-- **High TTFA:** the default `stream()` in [app/models/base.py](app/models/base.py) falls back to synth-then-chunk, which doesn't stream-as-you-go. Real TTFA wins come from native streaming in Phase 3.
+- Want current repo status:
+  [documentation/PROJECT_STATUS.md](documentation/PROJECT_STATUS.md)
+- Want benchmark details and remote setup findings:
+  [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
+- Want code paths that still need implementation:
+  [app/config.py](app/config.py),
+  [app/models/__init__.py](app/models/__init__.py),
+  [app/models/qwen_tts.py](app/models/qwen_tts.py),
+  [app/models/chatterbox_tts.py](app/models/chatterbox_tts.py)
+
+---
+
+## Historical Note
+
+Some older docs still reference **Azure** as the main path. The current working
+direction is:
+
+- benchmark on Vast.ai first
+- use Chatterbox instead of Fish for the second model direction
+- treat Azure as an optional later deployment target, not the current source of
+  truth

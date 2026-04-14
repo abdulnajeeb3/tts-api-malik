@@ -1,5 +1,13 @@
 # Azure GPU VM Setup — TTS API
 
+> Status note: this doc is now **optional / historical**.
+> The first successful real benchmark for this repo was completed on Vast.ai,
+> not Azure. Current source-of-truth status lives in:
+> [PROJECT_STATUS.md](./PROJECT_STATUS.md) and
+> [VAST_BENCHMARK_STATUS.md](./VAST_BENCHMARK_STATUS.md).
+> Keep this document as a future Azure deployment path, not as the current
+> active setup path.
+
 **Goal:** Provision a single GPU VM in **Azure East US** (`eastus`) that hosts this TTS API, loads both models into VRAM, and exposes `:8000` to the friend's voice agent infrastructure — also in `eastus` — with minimal latency.
 
 **Audience:** Najeeb (provisioning), and Claude Code (for SSH-based configuration once the VM exists).
@@ -80,7 +88,11 @@ If the current value is 0 or below what you need (NC8ads_A10_v4 needs **8 vCPUs*
 | Price (pay-as-you-go) | ~$1.43 / hour ≈ $1,050 / mo always-on |
 | Spot price | ~$0.26 / hour ≈ $190 / mo (subject to eviction) |
 
-**Why A10:** Both Qwen3-TTS (~8 GB) and Fish Speech S1-mini (~4 GB) fit in 24 GB with plenty of headroom for KV cache, activations, and a third model later. Load both at startup — the plan bans lazy loading.
+**Why A10:** 24 GB VRAM is enough to benchmark serious open-source TTS models,
+but the latest repo direction is no longer "Qwen + Fish in one clean stack."
+Qwen and Chatterbox may require split runtimes, so treat 24 GB as a solid
+single-box benchmark target rather than proof that one-process loading is
+solved.
 
 ### Fallback: `Standard_NC4as_T4_v3`
 
@@ -91,11 +103,18 @@ If the current value is 0 or below what you need (NC8ads_A10_v4 needs **8 vCPUs*
 | RAM | 28 GiB |
 | Price | ~$0.52 / hour ≈ $380 / mo |
 
-Cheaper, but 16 GB is tight for both models loaded simultaneously. If we go this route, start with **Fish Speech only** (fits in 4 GB) and add Qwen once we confirm it fits.
+Cheaper, but 16 GB is tight for a modern multi-model TTS setup. If you go this
+route, start with **one model at a time** and validate the runtime story before
+trying to host multiple models together.
 
 ### Cost-optimized later: 2× A10 behind a load balancer
 
-Per `documentation/TTS_MODELS_RESEARCH.md`, one A10 handles ~20–30M chars/month. Once we cross 30M, provision a second A10 and put both behind an Azure Load Balancer with session affinity for WebSocket. Don't do this in Phase 1 — a single VM is simpler and the friend's current volume is well under 30M.
+Per the current research and benchmark notes, one A10-class GPU is a reasonable
+starting point but may not be enough once traffic grows. Once we cross the
+single-box comfort zone, provision a second GPU node and put both behind an
+Azure Load Balancer with session affinity for WebSocket. Don't do this in
+Phase 1 — a single VM is simpler and the friend's current volume is well under
+that threshold.
 
 ---
 
@@ -289,7 +308,7 @@ cp .env.example .env
 # Edit .env:
 #   - API_KEYS=<pick something real>
 #   - USE_MOCK_MODELS=0
-#   - confirm ENABLED_MODELS=qwen3-tts,fish-s1-mini
+#   - confirm ENABLED_MODELS=qwen3-tts
 nano .env
 
 # Build + run
@@ -397,7 +416,8 @@ az group delete --name "$RG" --yes --no-wait
 
 If you hit "SKU not available in this region / subscription" on `NC8ads_A10_v4`:
 
-1. **Try `NC4ads_A10_v4`** (quarter of an A10, 6 GB VRAM). Not enough for both models but works for benchmarking Fish Speech alone.
+1. **Try `NC4ads_A10_v4`** (quarter of an A10, 6 GB VRAM). Not enough for a
+   serious multi-model stack, but usable for one-model experiments.
 2. **Try `NC6s_v3`** (1× V100 16 GB, older but widely available). V100 is CUDA-compatible with everything in this project.
 3. **Try `NC8ads_H100_v5`** (newer, Azure is prioritizing this family for new capacity). More expensive but more future-proof.
 4. **Try a different region:** `eastus2`, `southcentralus`, or `westus3` often have A10 quota when `eastus` doesn't. **Only** do this if we've already confirmed with the friend that a cross-region hop adds acceptable latency. Most likely answer: no, stay in `eastus`, eat the quota request delay.

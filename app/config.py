@@ -11,7 +11,7 @@ from typing import List, Literal, get_args
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ModelName = Literal["qwen3-tts", "fish-s1-mini"]
+ModelName = Literal["qwen3-tts", "chatterbox"]
 StreamFormat = Literal["pcm", "opus"]
 RestFormat = Literal["mp3", "wav", "opus", "flac"]
 
@@ -36,15 +36,23 @@ class Settings(BaseSettings):
     api_keys: str = "dev-local-key-change-me"
 
     # ---- Models ----
-    enabled_models: str = "qwen3-tts,fish-s1-mini"
+    enabled_models: str = "qwen3-tts"
     hf_home: str = "/models_cache/huggingface"
     transformers_cache: str = "/models_cache/huggingface"
 
-    qwen_model_id: str = "Qwen/Qwen3-TTS"
+    qwen_model_id: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
     qwen_device: str = "cuda:0"
+    qwen_speaker: str = "Aiden"
+    qwen_language: str = "English"
+    qwen_instruct: str = "Professional and friendly tone."
+    qwen_dtype: Literal["bfloat16", "float16"] = "bfloat16"
+    qwen_attn_implementation: str = "flash_attention_2"
 
-    fish_model_id: str = "fishaudio/fish-speech-1.5"
-    fish_device: str = "cuda:0"
+    chatterbox_model_id: str = "ResembleAI/chatterbox"
+    chatterbox_device: str = "cuda:0"
+    chatterbox_mode: Literal["english", "multilingual", "turbo"] = "english"
+    chatterbox_audio_prompt: str = ""
+    chatterbox_language_id: str = "en"
 
     # ---- Audio defaults ----
     default_sample_rate: int = 24000

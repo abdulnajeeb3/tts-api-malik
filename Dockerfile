@@ -1,7 +1,16 @@
 # syntax=docker/dockerfile:1.6
-# TTS API — CUDA-enabled runtime image.
-# Base matches the plan: CUDA 12.1 runtime on Ubuntu 22.04.
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+# Generic model-runtime image.
+#
+# This repo no longer assumes all TTS models can share one Python environment.
+# Instead, the same FastAPI app is built into separate runtime images, each
+# with model-specific dependency stacks.
+ARG CUDA_IMAGE=nvidia/cuda:12.1.1-runtime-ubuntu22.04
+FROM ${CUDA_IMAGE}
+
+ARG REQUIREMENTS_FILE=requirements.qwen.txt
+ARG PREINSTALL_TORCH=0
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu121
+ARG TORCH_SPEC=torch==2.4.1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -32,19 +41,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -sf /usr/bin/python3.11 /usr/bin/python3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install torch first from CUDA index so we pull the CUDA 12.1 build, then everything else.
+# Install model-specific dependencies.
 WORKDIR /app
-COPY requirements.txt .
+COPY requirements.runtime.txt requirements.qwen.txt requirements.chatterbox.txt ./
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.4.1 \
-    && python -m pip install -r requirements.txt
+    && if [ "$PREINSTALL_TORCH" = "1" ]; then \
+        python -m pip install --index-url "$TORCH_INDEX_URL" $TORCH_SPEC ; \
+       fi \
+    && python -m pip install -r "$REQUIREMENTS_FILE"
 
 # App code
 COPY app/ ./app/
 COPY benchmark/ ./benchmark/
 
 # Model cache lives on a mounted volume so restarts don't re-download weights.
-RUN mkdir -p /models_cache/huggingface
+RUN mkdir -p /models_cache/huggingface /app/logs /app/benchmark/output
 
 EXPOSE 8000
 

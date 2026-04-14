@@ -1,38 +1,81 @@
+x-tts-api-common: &tts-api-common
+  restart: unless-stopped
+  env_file:
+    - .env
+  environment:
+    NVIDIA_VISIBLE_DEVICES: all
+    NVIDIA_DRIVER_CAPABILITIES: compute,utility
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+    interval: 30s
+    timeout: 10s
+    start_period: 120s
+    retries: 3
+
 services:
-  tts-api:
+  tts-api-qwen:
+    <<: *tts-api-common
     build:
       context: .
       dockerfile: Dockerfile
-    image: tts-api-malik:latest
-    container_name: tts-api
-    restart: unless-stopped
+      args:
+        CUDA_IMAGE: nvidia/cuda:12.1.1-runtime-ubuntu22.04
+        REQUIREMENTS_FILE: requirements.qwen.txt
+        PREINSTALL_TORCH: "1"
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
+        TORCH_SPEC: torch==2.4.1
+    image: tts-api-malik-qwen:latest
+    container_name: tts-api-qwen
     ports:
       - "8000:8000"
-    env_file:
-      - .env
     environment:
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      ENABLED_MODELS: qwen3-tts
+      QWEN_MODEL_ID: ${QWEN_MODEL_ID:-Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice}
+      QWEN_DEVICE: ${QWEN_DEVICE:-cuda:0}
+      QWEN_SPEAKER: ${QWEN_SPEAKER:-Aiden}
+      QWEN_LANGUAGE: ${QWEN_LANGUAGE:-English}
+      QWEN_INSTRUCT: ${QWEN_INSTRUCT:-Professional and friendly tone.}
+      QWEN_DTYPE: ${QWEN_DTYPE:-bfloat16}
+      QWEN_ATTN_IMPLEMENTATION: ${QWEN_ATTN_IMPLEMENTATION:-flash_attention_2}
     volumes:
-      # Persist HuggingFace model cache across container restarts.
-      - models_cache:/models_cache
-      # Benchmark outputs written to host for inspection.
-      - ./benchmark/output:/app/benchmark/output
-      - ./logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 120s
-      retries: 3
+      - models_cache_qwen:/models_cache
+      - ./benchmark/output-qwen:/app/benchmark/output
+      - ./logs/qwen:/app/logs
+
+  tts-api-chatterbox:
+    <<: *tts-api-common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        CUDA_IMAGE: nvidia/cuda:12.4.1-runtime-ubuntu22.04
+        REQUIREMENTS_FILE: requirements.chatterbox.txt
+        PREINSTALL_TORCH: "0"
+    image: tts-api-malik-chatterbox:latest
+    container_name: tts-api-chatterbox
+    ports:
+      - "8001:8000"
+    environment:
+      ENABLED_MODELS: chatterbox
+      CHATTERBOX_MODEL_ID: ${CHATTERBOX_MODEL_ID:-ResembleAI/chatterbox}
+      CHATTERBOX_DEVICE: ${CHATTERBOX_DEVICE:-cuda:0}
+      CHATTERBOX_MODE: ${CHATTERBOX_MODE:-english}
+      CHATTERBOX_AUDIO_PROMPT: ${CHATTERBOX_AUDIO_PROMPT:-}
+      CHATTERBOX_LANGUAGE_ID: ${CHATTERBOX_LANGUAGE_ID:-en}
+    volumes:
+      - models_cache_chatterbox:/models_cache
+      - ./benchmark/output-chatterbox:/app/benchmark/output
+      - ./logs/chatterbox:/app/logs
 
 volumes:
-  models_cache:
+  models_cache_qwen:
+    driver: local
+  models_cache_chatterbox:
     driver: local
