@@ -2,12 +2,12 @@
 
 Routes:
   * GET  /health                — model + GPU + active-connections snapshot
-  * POST /v1/audio/speech       — OpenAI-compatible REST TTS (Phase 2)
-  * WS   /v1/audio/stream       — chunked streaming TTS (Phase 3)
+  * POST /v1/audio/speech       — OpenAI-style REST TTS
+  * WS   /v1/audio/stream       — chunked streaming TTS
 
 Startup wiring:
   * Parse settings
-  * Build the model registry (loads both models into VRAM)
+  * Build the model registry (loads enabled models at startup)
   * Install the shared StreamingHandler
 
 Shutdown:
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TTS API (Malik)",
     version="0.1.0",
-    description="Open-source TTS API serving Qwen3-TTS and Fish Speech S1-mini.",
+    description="Open-source TTS API for separate Qwen3-TTS and Chatterbox services.",
     lifespan=lifespan,
 )
 
@@ -139,7 +139,7 @@ def _gpu_memory_snapshot() -> tuple[Optional[float], Optional[float]]:
 class SpeechRequest(BaseModel):
     """Mirrors OpenAI's TTS request shape so `openai.audio.speech.create()`
     works with only a base_url change."""
-    model: Literal["qwen3-tts", "fish-s1-mini"]
+    model: Literal["qwen3-tts", "chatterbox"]
     input: str = Field(..., max_length=4096)
     voice: str = "default"
     response_format: Literal["mp3", "wav", "opus", "flac"] = "mp3"

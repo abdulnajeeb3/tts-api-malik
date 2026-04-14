@@ -5,6 +5,9 @@ Responsibilities:
   * Encode a full waveform to mp3/wav/opus/flac for the REST endpoint.
   * Chunk a waveform into fixed-duration pieces (fallback path for models
     that don't stream natively).
+  * Normalize package-specific outputs into a mono float32 waveform.
+  * Resample a waveform when the request sample rate differs from the
+    model-native sample rate.
 
 Keep this module numpy-only on the hot path — no torch — to stay light for
 the streaming thread.
@@ -12,13 +15,56 @@ the streaming thread.
 from __future__ import annotations
 
 import io
-from typing import Iterator, Literal
+from typing import Any, Iterator, Literal
 
 import numpy as np
 import soundfile as sf
 
 
 RestFormat = Literal["mp3", "wav", "opus", "flac"]
+
+
+def to_mono_float32(audio: Any) -> np.ndarray:
+    """Normalize model output to a 1D float32 numpy array.
+
+    Handles plain numpy arrays, Python sequences, and torch tensors without
+    importing torch into this module.
+    """
+    if isinstance(audio, (list, tuple)):
+        if not audio:
+            return np.asarray([], dtype=np.float32)
+        audio = audio[0]
+
+    if hasattr(audio, "detach") and hasattr(audio, "cpu"):
+        arr = audio.detach().float().cpu().numpy()
+    else:
+        arr = np.asarray(audio, dtype=np.float32)
+
+    arr = np.squeeze(arr)
+    if arr.ndim == 0:
+        return np.asarray([float(arr)], dtype=np.float32)
+    if arr.ndim == 1:
+        return arr.astype(np.float32, copy=False)
+
+    return arr.reshape(-1, arr.shape[-1])[0].astype(np.float32, copy=False)
+
+
+def resample_waveform(
+    waveform: np.ndarray,
+    src_rate: int,
+    dst_rate: int,
+) -> np.ndarray:
+    """Resample a mono float32 waveform with linear interpolation."""
+    if src_rate <= 0 or dst_rate <= 0:
+        raise ValueError(f"sample rates must be positive, got {src_rate} -> {dst_rate}")
+    if src_rate == dst_rate or len(waveform) == 0:
+        return waveform.astype(np.float32, copy=False)
+
+    duration_s = len(waveform) / float(src_rate)
+    dst_len = max(1, int(round(duration_s * dst_rate)))
+    src_positions = np.linspace(0.0, len(waveform) - 1, num=len(waveform), dtype=np.float32)
+    dst_positions = np.linspace(0.0, len(waveform) - 1, num=dst_len, dtype=np.float32)
+    return np.interp(dst_positions, src_positions, waveform).astype(np.float32, copy=False)
 
 
 # ---------- PCM conversion ----------

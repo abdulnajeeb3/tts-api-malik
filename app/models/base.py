@@ -1,6 +1,6 @@
 """Abstract TTS model interface.
 
-Every concrete wrapper (Qwen3-TTS, Fish Speech S1-mini, mock) must implement
+Every concrete wrapper (Qwen3-TTS, Chatterbox, mock) must implement
 this interface so the REST and WebSocket code stays model-agnostic.
 
 Two output modes:

@@ -1,28 +1,104 @@
-# `benchmark/` — A/B test both TTS models
+# `benchmark/` — model comparison harnesses
 
-Before anyone (including the friend) hears audio from this API, we run both models head-to-head on the same phrases, log the timings, and save the audio for a manual listening pass. This folder holds that harness.
+This folder now has **two** benchmark layers:
+
+1. **App-level benchmark**
+   Uses the FastAPI server's REST endpoint.
+2. **Direct package bakeoff**
+   Runs model packages directly on a GPU machine, bypassing the API scaffold.
+
+The second one became necessary because the app wrappers were unfinished at the
+time of the first real benchmark, while we still needed a real Qwen vs
+Chatterbox comparison on GPU.
 
 ---
 
 ## Files
 
-### `test_phrases.txt` — the 10 medical booking phrases
-Plain text, one phrase per line. These come from the plan PDF and represent the actual domain — appointment confirmations, availability offers, confirmation numbers with spelled-out digits, dollar amounts, medication names, addresses, time/date formats. Voice agents fail in weird ways on exactly these patterns (especially numbers and proper names), so this is a realistic stress test, not just Lorem Ipsum.
+### `test_phrases.txt`
 
-### `run_benchmark.py` — the runner
-Hits the REST endpoint once per phrase per model, then prints a summary table. Key behaviors:
+The 10 medical booking phrases used across all benchmark work.
 
-- **REST, not WebSocket.** Easier to script and the latency comparison is still meaningful. Streaming TTFA is validated separately in Phase 3/4.
-- **Server-reported TTFA.** We prefer the `X-TTFA-Ms` header over the client-observed roundtrip so network RTT doesn't pollute the measurement.
-- **Saves WAV to `output/`.** Every synthesis is written to `benchmark/output/<model>__NN.wav` so you can listen by ear. Voice quality is the number the plan says to obsess over.
-- **Computes RTF.** Real-time factor = `total_time / audio_duration`. RTF < 1.0 means the model is faster than real time (required for streaming). RTF > 1.0 means it can't keep up and streaming will stutter.
-- **Raw JSONL dump.** All per-run results are written to `output/results.jsonl` so you can re-analyze later without re-running the benchmark.
+These are deliberately not generic demo lines. They contain:
+
+- dates
+- times
+- digits and confirmation numbers
+- doctor names
+- addresses
+- medication names
+- copay amounts
+
+This is the real domain stress test.
+
+### `run_benchmark.py`
+
+Benchmarks the **running API server** through `POST /v1/audio/speech`.
+
+Use this once:
+
+- real inference is wired into the app
+- the server is serving real audio instead of mock placeholders
+
+Today, this harness is structurally useful for end-to-end validation of each
+service after the wrapper implementation work.
+
+### `direct_model_bakeoff.py`
+
+Benchmarks model packages **directly** on a GPU box.
+
+Current purpose:
+
+- compare Qwen3-TTS vs Chatterbox independently of the FastAPI process
+- save per-phrase WAVs
+- log per-run JSONL results
+
+This is the benchmark that produced the first real Vast.ai comparison.
+
+### `vast_4090_2026-04-13/`
+
+Pulled outputs from the first successful remote benchmark run on a Vast.ai
+RTX 4090.
+
+Contains:
+
+- `qwen_full_output/`
+- `chatterbox_full_output/`
+
+Each contains:
+
+- `results.jsonl`
+- 10 per-phrase WAV files
 
 ---
 
-## Running it
+## Current Benchmark Truth
 
-From the repo root, with the server running and both models loaded:
+The current real benchmark result is the Vast direct-package bakeoff, not the
+API-level benchmark.
+
+Summary from `benchmark/vast_4090_2026-04-13/`:
+
+| Model | Runs | Mean total | Mean audio | Mean RTF |
+|---|---:|---:|---:|---:|
+| Qwen3-TTS | 10 | 6478 ms | 4.95 s | 1.31 |
+| Chatterbox | 10 | 2035 ms | 4.37 s | 0.47 |
+
+Interpretation:
+
+- Chatterbox was faster on this first direct-package run.
+- Qwen worked, but is still not hitting the expected fast path on this stack.
+
+For the full setup and caveats, read:
+
+- [documentation/VAST_BENCHMARK_STATUS.md](../documentation/VAST_BENCHMARK_STATUS.md)
+
+---
+
+## Running The App-Level Benchmark
+
+Use this when the FastAPI server is running and real model inference is
+implemented:
 
 ```bash
 python -m benchmark.run_benchmark \
@@ -31,41 +107,63 @@ python -m benchmark.run_benchmark \
   --output-dir benchmark/output
 ```
 
-On the Azure VM inside the container:
-
-```bash
-docker compose exec tts-api \
-  python -m benchmark.run_benchmark --base-url http://localhost:8000
-```
-
 Only test one model:
 
 ```bash
 python -m benchmark.run_benchmark --models qwen3-tts
 ```
 
----
+Important:
 
-## Reading the output
-
-The summary table looks roughly like:
-
-```
-Model          Runs  Errors  Mean TTFA  Mean total  Mean audio  Mean RTF
-qwen3-tts      10    0       95 ms      480 ms       3.8 s       0.13
-fish-s1-mini   10    0       180 ms     620 ms       3.9 s       0.16
-```
-
-What to look for:
-- **Mean TTFA** — plan target is <200ms. Anything over 250ms in this benchmark is a problem.
-- **Mean RTF** — must be well under 1.0 for streaming to work. 0.1–0.3 is healthy on an A10.
-- **Errors** — any non-zero means the server returned a non-200 for at least one request. Check the error column in the raw JSONL for the message.
-- **Listen to the WAVs.** Numbers wrong? Proper names butchered? That's a model quality issue you can't catch from timings alone.
+- This benchmark reflects the app's configured model names.
+- Each runtime should be tested against its own base URL.
+- The direct bakeoff is still the most recently validated real benchmark.
 
 ---
 
-## What's _not_ in this benchmark (yet)
+## Running The Direct Package Bakeoff
 
-- **Streaming TTFA.** REST synth-then-return is not the same as WebSocket streaming. Phase 3 adds a dedicated streaming benchmark.
-- **Concurrent load.** Phase 4 adds a 5-connection concurrency test to measure degradation under load.
-- **Quality scoring.** We just save WAVs for manual review. Automated MOS scoring is out of scope for v1.
+Typical pattern:
+
+```bash
+python -m benchmark.direct_model_bakeoff \
+  --phrases-file benchmark/test_phrases.txt \
+  --output-dir benchmark/direct_output
+```
+
+The actual remote Vast run used isolated environments for Qwen and Chatterbox
+because their Python dependency stacks conflicted.
+
+That conflict is one of the most important findings from the benchmark work.
+
+---
+
+## Reading The Output
+
+Look at:
+
+- errors
+- total time
+- audio duration
+- RTF
+- the WAVs themselves
+
+Rules of thumb:
+
+- `RTF < 1.0` means faster than real time
+- `RTF > 1.0` means too slow for clean real-time streaming
+- the WAVs matter more than timing alone
+
+If names, numbers, dates, or medical terms sound wrong, the model is not good
+enough even if the latency is strong.
+
+---
+
+## What This Folder Is Missing
+
+- ElevenLabs-style compatibility benchmarks
+- true HTTP streaming benchmark
+- concurrency/load benchmark
+- automated listening-quality scoring
+
+Those are still future work.

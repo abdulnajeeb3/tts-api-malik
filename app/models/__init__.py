@@ -6,7 +6,7 @@ from typing import Dict
 
 from app.config import Settings
 from app.models.base import TTSModel
-from app.models.fish_tts import FishSpeechModel
+from app.models.chatterbox_tts import ChatterboxTTSModel
 from app.models.qwen_tts import QwenTTSModel
 
 logger = logging.getLogger("tts_api.models")
@@ -15,7 +15,7 @@ logger = logging.getLogger("tts_api.models")
 def build_registry(settings: Settings) -> Dict[str, TTSModel]:
     """Instantiate and load every enabled model. Called once at startup.
 
-    Follows the plan: load both into VRAM up-front. Lazy loading is banned.
+    Follows the current plan: load every enabled model up-front.
     """
     registry: Dict[str, TTSModel] = {}
 
@@ -25,13 +25,21 @@ def build_registry(settings: Settings) -> Dict[str, TTSModel]:
             model = QwenTTSModel(
                 model_id=settings.qwen_model_id,
                 device=settings.qwen_device,
+                speaker=settings.qwen_speaker,
+                language=settings.qwen_language,
+                instruct=settings.qwen_instruct,
+                dtype=settings.qwen_dtype,
+                attn_implementation=settings.qwen_attn_implementation,
                 sample_rate=settings.default_sample_rate,
                 mock=settings.use_mock_models,
             )
-        elif name == "fish-s1-mini":
-            model = FishSpeechModel(
-                model_id=settings.fish_model_id,
-                device=settings.fish_device,
+        elif name == "chatterbox":
+            model = ChatterboxTTSModel(
+                model_id=settings.chatterbox_model_id,
+                device=settings.chatterbox_device,
+                mode=settings.chatterbox_mode,
+                audio_prompt=settings.chatterbox_audio_prompt,
+                language_id=settings.chatterbox_language_id,
                 sample_rate=settings.default_sample_rate,
                 mock=settings.use_mock_models,
             )

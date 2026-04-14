@@ -1,0 +1,6 @@
+-r requirements.runtime.txt
+
+# Chatterbox runtime stack
+chatterbox-tts==0.1.7
+torchvision==0.21.0
+optree>=0.13.0

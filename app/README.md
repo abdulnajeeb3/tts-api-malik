@@ -1,5 +1,15 @@
 # `app/` — the FastAPI application
 
+Current status:
+
+- The package boots and serves the API correctly in **mock mode**.
+- The route contract today is **internal/OpenAI-style**, not
+  ElevenLabs-compatible.
+- The real inference layer is now wired for both Qwen and Chatterbox.
+- The code now points at **Qwen + Chatterbox** as the target pair.
+- Only **Qwen** is enabled by default in shared config.
+- The intended deployment model is one service per model runtime.
+
 This package is the whole server. If you're reading this to learn the codebase, read the files in this order:
 
 1. **[config.py](config.py)** — all environment-driven settings, parsed once via `pydantic-settings`. If you want to know "what can I configure?", start here.
@@ -15,14 +25,14 @@ This package is the whole server. If you're reading this to learn the codebase, 
 
 ### `main.py` — entrypoint
 Defines three routes:
-- `GET /health` — unauthenticated, returns model list + GPU mem + active connections. Unauthenticated on purpose — Azure Load Balancer health probes can't send headers.
+- `GET /health` — unauthenticated, returns model list + GPU mem + active connections. Unauthenticated on purpose so load balancer or uptime probes can hit it without credentials.
 - `POST /v1/audio/speech` — OpenAI-compatible REST. Pydantic-validates the request, runs `model.synthesize()` in the thread pool (so PyTorch doesn't block the event loop), encodes with `audio_utils.encode_waveform`, returns `Response` with the right `Content-Type`.
 - `WS /v1/audio/stream` — hands the connection to the shared `StreamingHandler`.
 
-The `lifespan` context manager is where **both models are loaded into VRAM at startup**. The plan bans lazy loading — cold-start latency would blow the sub-200ms TTFA target. `build_registry()` runs in a thread pool executor so the HTTP port binds before the slow model-download path runs.
+The `lifespan` context manager is where **all enabled models are loaded at startup**. The original plan banned lazy loading because cold-start latency would blow the TTFA target. In practice, the latest benchmark work suggests we may need **split runtimes per model** rather than one monolith, because Qwen and Chatterbox do not currently coexist cleanly in one shared Python environment.
 
 ### `config.py` — settings
-Everything reads from env vars (see `.env.example` in the repo root). `get_settings()` is `lru_cache`d so there's one canonical `Settings` instance per process. Comma-separated env values (`API_KEYS`, `ENABLED_MODELS`) are split in a field validator — that's what lets `API_KEYS=a,b,c` in `.env` become a real Python list.
+Everything reads from env vars (see `.env.example` in the repo root). `get_settings()` is `lru_cache`d so there's one canonical `Settings` instance per process. Comma-separated env values such as `API_KEYS` and `ENABLED_MODELS` are stored as raw strings and exposed through helper properties like `api_key_list` and `enabled_model_list`.
 
 ### `metrics.py` — TTFA + connection tracking
 Two pieces:
@@ -45,6 +55,15 @@ The protocol is documented in the file's module docstring. The interesting desig
 - **TTFA is measured inside `_run`.** The first `async for chunk in model.stream(...)` iteration triggers `timings.mark_first_chunk()`. This is the number we're optimizing.
 - **Cleanup on every exit.** Finally block calls `metrics_registry.log_completion()` and closes the socket. The plan explicitly says: "never leave the client hanging."
 
+Important limitation:
+
+- The WebSocket route is the repo's own protocol.
+- It is **not** an ElevenLabs-compatible HTTP streaming endpoint.
+- If the goal is true plug-and-play replacement for a client already using
+  ElevenLabs, a compatibility shim still needs to be added above this layer.
+- The current stream path is synthesize-then-chunk, not native model
+  token-by-token streaming.
+
 ---
 
 ## How a single WebSocket request flows through the code
@@ -62,7 +81,7 @@ client ──connect──▶ main.stream_speech()                           [ma
                        │  metrics_registry.new_request()
                        ▼
                    TTSModel.stream(request)                         [models/base.py]
-                       │  (override in qwen_tts.py / fish_tts.py)
+                       │  (currently qwen_tts.py / chatterbox_tts.py)
                        │  yields float32 chunks
                        ▼
                    audio_utils.float_to_pcm16(chunk)                [audio_utils.py]

@@ -1,0 +1,4 @@
+-r requirements.runtime.txt
+
+# Qwen runtime stack
+qwen-tts==0.1.1
