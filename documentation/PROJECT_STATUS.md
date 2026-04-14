@@ -1,7 +1,14 @@
 # Project Status
 
-> Snapshot taken on **April 13, 2026** after the first full Vast.ai benchmark
-> pass. Read this first before resuming work.
+> Snapshot updated on **April 14, 2026** after the Qwen/Chatterbox runtime
+> split, wrapper implementation pass, documentation sync, and push to `main`.
+> Read this first before resuming work.
+
+Latest pushed checkpoint:
+
+- branch: `main`
+- commit: `204f238`
+- quick handoff: [documentation/AGENT_HANDOFF.md](./AGENT_HANDOFF.md)
 
 ---
 
@@ -189,8 +196,7 @@ Later:
 
 ## Working Tree Changes To Be Aware Of
 
-At the time of this snapshot, these new local artifacts existed and were not
-yet committed:
+This checkpoint is committed and pushed. The main repo state to remember is:
 
 - [README.md](../README.md)
 - [app/README.md](../app/README.md)
@@ -200,11 +206,13 @@ yet committed:
 - [benchmark/README.md](../benchmark/README.md)
 - [benchmark/vast_4090_2026-04-13](../benchmark/vast_4090_2026-04-13)
 - [documentation/AZURE_SETUP.md](./AZURE_SETUP.md)
+- [documentation/AGENT_HANDOFF.md](./AGENT_HANDOFF.md)
 - [documentation/PROJECT_STATUS.md](./PROJECT_STATUS.md)
 - [documentation/VAST_BENCHMARK_STATUS.md](./VAST_BENCHMARK_STATUS.md)
 
-If you resume later, check `git status` first so you do not lose the benchmark
-outputs or overwrite the handoff notes by accident.
+At the time this status doc was updated, the working tree was clean after
+push. If you resume later, still run `git status` first before changing
+anything.
 
 ---
 
@@ -217,9 +225,10 @@ git status
 
 Then read, in this order:
 
-1. [documentation/PROJECT_STATUS.md](./PROJECT_STATUS.md)
-2. [documentation/VAST_BENCHMARK_STATUS.md](./VAST_BENCHMARK_STATUS.md)
-3. [documentation/TTS_MODELS_RESEARCH_V2.md](./TTS_MODELS_RESEARCH_V2.md)
+1. [documentation/AGENT_HANDOFF.md](./AGENT_HANDOFF.md)
+2. [documentation/PROJECT_STATUS.md](./PROJECT_STATUS.md)
+3. [documentation/VAST_BENCHMARK_STATUS.md](./VAST_BENCHMARK_STATUS.md)
+4. [documentation/TTS_MODELS_RESEARCH_V2.md](./TTS_MODELS_RESEARCH_V2.md)
 
 Then inspect the code paths that still need alignment:
 

@@ -9,6 +9,7 @@ implementations for separate Qwen and Chatterbox services.
 
 Start with:
 
+- [documentation/AGENT_HANDOFF.md](documentation/AGENT_HANDOFF.md)
 - [documentation/PROJECT_STATUS.md](documentation/PROJECT_STATUS.md)
 - [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
 - [documentation/TTS_MODELS_RESEARCH_V2.md](documentation/TTS_MODELS_RESEARCH_V2.md)
@@ -78,8 +79,10 @@ TTS-API-Malik/
 │   ├── test_phrases.txt
 │   └── vast_4090_2026-04-13/
 └── documentation/
+    ├── AGENT_HANDOFF.md
     ├── PROJECT_STATUS.md
     ├── VAST_BENCHMARK_STATUS.md
+    ├── FRIEND_TESTING_GUIDE.md
     ├── TTS_MODELS_RESEARCH_V2.md
     └── AZURE_SETUP.md
 ```
@@ -237,6 +240,17 @@ Also:
   default speaker
 - both real wrappers should be re-smoke-tested on GPU before treating them as
   production-ready
+
+---
+
+## Resume Here
+
+If you are resuming this repo later or handing it to another agent, start with:
+
+1. [documentation/AGENT_HANDOFF.md](documentation/AGENT_HANDOFF.md)
+2. [documentation/PROJECT_STATUS.md](documentation/PROJECT_STATUS.md)
+3. [documentation/VAST_BENCHMARK_STATUS.md](documentation/VAST_BENCHMARK_STATUS.md)
+4. [documentation/FRIEND_TESTING_GUIDE.md](documentation/FRIEND_TESTING_GUIDE.md)
 
 ---
 
