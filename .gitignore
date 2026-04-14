@@ -43,6 +43,7 @@ benchmark/output/
 *.opus
 *.flac
 !benchmark/samples/*.wav
+!benchmark/vast_4090_2026-04-13/**/*.wav
 
 # Logs & metrics
 logs/
