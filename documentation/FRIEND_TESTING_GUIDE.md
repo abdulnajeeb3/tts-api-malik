@@ -2,6 +2,25 @@
 
 > Use this when handing a live Qwen or Chatterbox endpoint to an external
 > tester.
+>
+> **Last updated: April 14, 2026**  
+> Current live endpoint details: [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)
+
+---
+
+## Current Live URL (April 14, 2026)
+
+**Chatterbox** is live on Vast.ai:
+
+```
+http://71.104.167.38:52328
+```
+
+API key: `dev-local-key-change-me`
+
+Qwen3-TTS is not yet exposed via FastAPI. Pre-generated Qwen audio samples
+are available under `benchmark/vast_4090_2026-04-13/qwen_full_output/` if you
+want the friend to hear Qwen without waiting for a live service.
 
 ---
 
@@ -252,5 +271,10 @@ Use language like this:
 - This is not an ElevenLabs-compatible API surface.
 - Each model has its own service because shared-runtime dependency conflicts
   are real and will recur as more models are added.
-- Qwen and Chatterbox were validated directly on GPU in the benchmark harness,
-  but the updated FastAPI serving path should still get a fresh GPU smoke test.
+- Chatterbox was validated end-to-end through the FastAPI serving path on April
+  14, 2026 (all three endpoints green on RTX 4090).
+- Qwen3-TTS still needs a FastAPI smoke test. The direct-package benchmark
+  worked, but the FastAPI wrapper has not yet been hit on GPU.
+- Pre-generated benchmark WAVs are in `benchmark/vast_4090_2026-04-13/` and
+  can be shared with the friend for an initial quality listen without any live
+  service.

@@ -1,35 +1,37 @@
 # Project Status
 
-> Snapshot updated on **April 14, 2026** after the Qwen/Chatterbox runtime
-> split, wrapper implementation pass, documentation sync, and push to `main`.
+> Snapshot updated on **April 14, 2026** (second update) after the Chatterbox
+> FastAPI GPU smoke test completed successfully on Vast.ai RTX 4090.
 > Read this first before resuming work.
 
 Latest pushed checkpoint:
 
 - branch: `main`
-- commit: `204f238`
+- commit: `236e914`
 - quick handoff: [documentation/AGENT_HANDOFF.md](./AGENT_HANDOFF.md)
+- live endpoint: [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)
 
 ---
 
 ## TL;DR
 
-- The API scaffold still boots locally in mock mode.
+- The API scaffold boots locally in mock mode (pydantic-settings bug fixed).
 - The research phase is complete and the model recommendation changed.
 - Fish has been removed from the scaffold.
 - A real remote benchmark was completed on Vast.ai for:
   - **Qwen3-TTS**
   - **Chatterbox**
+- **Chatterbox FastAPI smoke test is complete and passing on RTX 4090.**
 - The codebase now names:
   - `qwen3-tts`
   - `chatterbox`
-- The runtime strategy is now:
+- The runtime strategy is:
   - **one model per service**
   - **separate dependency stacks**
-- The real wrapper code is now implemented for both models.
-- Streaming is active through the existing WebSocket route.
-- The next work is GPU smoke validation plus whichever compatibility layer your
-  friend eventually needs.
+- The real wrapper code is implemented for both models.
+- Streaming is active through the WebSocket route.
+- Chatterbox live endpoint: `http://71.104.167.38:52328` (Vast.ai, watch the credit).
+- Waiting on: friend's voice quality feedback and Azure T4 GPU quota approval.
 
 ---
 

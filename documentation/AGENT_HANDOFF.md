@@ -3,10 +3,10 @@
 > Current checkpoint for resuming work in a later session or handing the repo
 > to another agent.
 
-**Last updated:** April 14, 2026  
+**Last updated:** April 14, 2026 (updated after Chatterbox FastAPI smoke test)  
 **Branch:** `main`  
-**Latest pushed commit:** `204f238`  
-**Repo state at handoff:** clean working tree after push
+**Latest pushed commit:** `236e914`  
+**Repo state at handoff:** clean working tree; one uncommitted documentation update in progress
 
 ---
 
@@ -47,12 +47,19 @@
 - Benchmark artifacts are committed under:
   - [benchmark/vast_4090_2026-04-13](../benchmark/vast_4090_2026-04-13)
 
+### Fully validated (new — April 14, 2026)
+
+- **Chatterbox FastAPI smoke test complete** on Vast.ai RTX 4090:
+  - `GET /health` → 200, model loaded
+  - `POST /v1/audio/speech` → 200, 186 KB WAV, 2.2s
+  - `WS /v1/audio/stream` → 15 chunks, 101 KB, TTFA 1.1s
+- Public URL confirmed reachable from local Mac: `http://71.104.167.38:52328`
+
 ### Not yet fully validated
 
-- The updated FastAPI serving path has **not** had a full end-to-end GPU smoke
-  test yet.
-- The last fully validated real-model run is still the direct benchmark, not
-  the FastAPI app.
+- Qwen3-TTS FastAPI serving path has not had an end-to-end GPU smoke test.
+  The direct-package benchmark ran fine, but the FastAPI wrapper has not been
+  hit on GPU.
 
 ---
 
@@ -71,16 +78,26 @@
 
 ## Immediate Next Step
 
-Do a real GPU smoke test through the FastAPI app, one service at a time.
+Chatterbox is already smoke-tested and the friend has a live URL. Wait for
+their voice quality feedback, then act on it.
 
-Suggested order:
+While waiting:
 
-1. Build and boot `tts-api-qwen`
-2. Hit `/health`
-3. Test `POST /v1/audio/speech`
-4. Test `WS /v1/audio/stream`
-5. Repeat for `tts-api-chatterbox`
-6. Hand the active base URL to the friend for listening feedback
+1. Share the pre-generated Chatterbox WAVs with the friend:
+   `benchmark/vast_4090_2026-04-13/chatterbox_full_output/*.wav`
+2. OR point them at `http://71.104.167.38:52328` with key `dev-local-key-change-me`
+
+After feedback:
+
+1. If Chatterbox quality is good → lock it in, start Qwen3-TTS FastAPI smoke
+   test, then productionize on Azure once T4 quota approved
+2. If Chatterbox quality is bad → run Qwen3-TTS via FastAPI on Vast, benchmark
+   it, let friend compare
+3. If both are bad → revisit TTS_MODELS_RESEARCH_V2.md for the next candidate
+
+Also remaining:
+
+- Stop Vast instance `34883373` to stop the $0.39/hr burn when done testing
 
 ---
 
