@@ -124,36 +124,22 @@ Notes:
 
 ### Example curl
 
-Qwen:
+Qwen: *(not yet live via FastAPI — use pre-generated samples above)*
+
+Chatterbox *(live now)*:
 
 ```bash
-curl -X POST "http://HOST:8000/v1/audio/speech" \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen3-tts",
-    "input": "Your appointment with Doctor Smith is confirmed for Tuesday at 2:30 PM.",
-    "voice": "Aiden",
-    "response_format": "mp3",
-    "speed": 1.0
-  }' \
-  --output qwen.mp3
-```
-
-Chatterbox:
-
-```bash
-curl -X POST "http://HOST:8001/v1/audio/speech" \
-  -H "X-API-Key: YOUR_KEY" \
+curl -X POST "http://71.104.167.38:52328/v1/audio/speech" \
+  -H "X-API-Key: dev-local-key-change-me" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "chatterbox",
     "input": "Your appointment with Doctor Smith is confirmed for Tuesday at 2:30 PM.",
     "voice": "default",
-    "response_format": "mp3",
+    "response_format": "wav",
     "speed": 1.0
   }' \
-  --output chatterbox.mp3
+  --output chatterbox.wav
 ```
 
 Useful response headers:
@@ -220,11 +206,11 @@ import websockets
 
 
 async def main():
-    uri = "ws://HOST:8000/v1/audio/stream?api_key=YOUR_KEY"
+    uri = "ws://71.104.167.38:52328/v1/audio/stream?api_key=dev-local-key-change-me"
     request = {
-        "model": "qwen3-tts",
+        "model": "chatterbox",
         "input": "Please hold for just a moment while I transfer you.",
-        "voice": "Aiden",
+        "voice": "default",
         "format": "pcm",
         "sample_rate": 24000,
         "speed": 1.0,
