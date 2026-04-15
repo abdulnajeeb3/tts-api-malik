@@ -9,11 +9,11 @@
 
 ## Status
 
-**Chatterbox service: LIVE**  
-Verified on **April 14, 2026** from local Mac and from inside the remote venv.
+**Qwen3-TTS service: LIVE** (swapped in over the same instance on April 14, 2026)  
+Verified from local Mac.
 
-**Qwen3-TTS service: NOT YET SERVED via FastAPI**  
-Qwen only has direct-benchmark validation right now.
+**Chatterbox service: STOPPED**  
+The Chatterbox venv and launch script remain on the remote box; to switch back, run `/workspace/launch_chatterbox.sh` after killing Qwen's uvicorn.
 
 ---
 
@@ -62,9 +62,9 @@ Validated on **April 14, 2026**.
 
 | Test | Result | Notes |
 |---|---|---|
-| `GET /health` | 200 OK | `models_loaded = ["chatterbox"]` |
-| `POST /v1/audio/speech` | 200 OK | 117164-byte WAV, `X-TTFA-Ms=5837`, `X-Total-Ms=5838` |
-| `WS /v1/audio/stream` | pending | skipped on this rebuild, REST path already validated |
+| `GET /health` | 200 OK | `models_loaded = ["qwen3-tts"]` |
+| `POST /v1/audio/speech` | 200 OK | 222764-byte WAV, `X-TTFA-Ms=3501`, `X-Total-Ms=3501` |
+| `WS /v1/audio/stream` | pending | not exercised on this swap |
 
 Current health response:
 
