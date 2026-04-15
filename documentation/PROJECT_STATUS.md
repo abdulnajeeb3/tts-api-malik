@@ -1,7 +1,8 @@
 # Project Status
 
-> Snapshot updated on **April 14, 2026** (second update) after the Chatterbox
-> FastAPI GPU smoke test completed successfully on Vast.ai RTX 4090.
+> Snapshot updated on **April 14, 2026** (third update) after the Chatterbox
+> endpoint was repaired and relaunched on the current Vast.ai RTX 4090
+> instance.
 > Read this first before resuming work.
 
 Latest pushed checkpoint:
@@ -30,7 +31,7 @@ Latest pushed checkpoint:
   - **separate dependency stacks**
 - The real wrapper code is implemented for both models.
 - Streaming is active through the WebSocket route.
-- Chatterbox live endpoint: `http://71.104.167.38:52328` (Vast.ai, watch the credit).
+- Chatterbox live endpoint: `http://57.132.208.22:23093` (Vast.ai, watch the credit).
 - Waiting on: friend's voice quality feedback and Azure T4 GPU quota approval.
 
 ---
@@ -71,11 +72,13 @@ Completed:
 
 Important:
 
-- At last check, the benchmark instance was:
-  - Vast instance ID `34883373`
-  - New Jersey RTX 4090
-  - about `$0.3879/hr`
-- Verify current state in Vast before assuming it is still running.
+- The original benchmark box was instance `34883373` in New Jersey.
+- The current live Chatterbox endpoint is on a newer instance:
+  - Vast instance ID `34958086`
+  - Texas RTX 4090
+  - about `$0.2967/hr`
+- Always re-check [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)
+  before assuming the live URL has not changed.
 
 ### 3. First real bakeoff is complete
 
@@ -117,7 +120,7 @@ The scaffold is now aligned at the naming level:
 - [app/models/__init__.py](../app/models/__init__.py)
   - registry now knows Qwen and Chatterbox
 - [app/models/chatterbox_tts.py](../app/models/chatterbox_tts.py)
-  - scaffolded as the second model wrapper
+  - now includes a Perth repair path for runtime startup
 
 Current implementation status of the wrappers:
 
@@ -158,6 +161,11 @@ Still missing:
 2. Hit `/v1/audio/speech` and `WS /v1/audio/stream` for each service
 3. Confirm package/runtime quirks did not break inside the FastAPI process
 
+Current status:
+
+1. Chatterbox: done
+2. Qwen3-TTS: still pending
+
 ### Priority 2. Expose testing endpoints cleanly
 
 Likely near-term shape:
@@ -190,8 +198,8 @@ Later:
 2. Listen to the pulled WAVs under
    [benchmark/vast_4090_2026-04-13](../benchmark/vast_4090_2026-04-13)
 3. Review the separate runtime Docker/compose setup
-4. Build one service
-5. test REST and WS
+4. If continuing Chatterbox work, collect friend feedback from the live Texas URL
+5. Otherwise, start the Qwen FastAPI smoke test next
 6. hand that base URL to the friend
 
 ---
