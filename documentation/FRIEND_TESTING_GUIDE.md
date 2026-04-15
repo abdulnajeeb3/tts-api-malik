@@ -10,7 +10,7 @@
 
 ## Current Live URL (April 14, 2026)
 
-**Chatterbox** is live on Vast.ai:
+**Qwen3-TTS** is live on Vast.ai (switched over from Chatterbox on the same instance):
 
 ```
 http://57.132.208.22:23106
@@ -18,9 +18,9 @@ http://57.132.208.22:23106
 
 API key: `dev-local-key-change-me`
 
-Qwen3-TTS is not yet exposed via FastAPI. Pre-generated Qwen audio samples
-are available under `benchmark/vast_4090_2026-04-13/qwen_full_output/` if you
-want the friend to hear Qwen without waiting for a live service.
+Use `model: "qwen3-tts"` and `voice: "Aiden"` in requests. Chatterbox is no
+longer running on the endpoint, but its venv is still staged on the remote
+box if you want to swap back.
 
 ---
 
@@ -124,23 +124,23 @@ Notes:
 
 ### Example curl
 
-Qwen: *(not yet live via FastAPI — use pre-generated samples above)*
-
-Chatterbox *(live now)*:
+Qwen *(live now)*:
 
 ```bash
 curl -X POST "http://57.132.208.22:23106/v1/audio/speech" \
   -H "X-API-Key: dev-local-key-change-me" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "chatterbox",
+    "model": "qwen3-tts",
     "input": "Your appointment with Doctor Smith is confirmed for Tuesday at 2:30 PM.",
-    "voice": "default",
+    "voice": "Aiden",
     "response_format": "wav",
     "speed": 1.0
   }' \
-  --output chatterbox.wav
+  --output qwen.wav
 ```
+
+Chatterbox *(stopped on the live endpoint — use pre-generated samples)*.
 
 Useful response headers:
 
@@ -208,9 +208,9 @@ import websockets
 async def main():
     uri = "ws://57.132.208.22:23106/v1/audio/stream?api_key=dev-local-key-change-me"
     request = {
-        "model": "chatterbox",
+        "model": "qwen3-tts",
         "input": "Please hold for just a moment while I transfer you.",
-        "voice": "default",
+        "voice": "Aiden",
         "format": "pcm",
         "sample_rate": 24000,
         "speed": 1.0,
