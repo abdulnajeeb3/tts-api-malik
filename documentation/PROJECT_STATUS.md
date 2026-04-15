@@ -31,7 +31,7 @@ Latest pushed checkpoint:
   - **separate dependency stacks**
 - The real wrapper code is implemented for both models.
 - Streaming is active through the WebSocket route.
-- Chatterbox live endpoint: `http://57.132.208.22:23093` (Vast.ai, watch the credit).
+- Chatterbox live endpoint: `http://57.132.208.22:23106` (Vast.ai, watch the credit).
 - Waiting on: friend's voice quality feedback and Azure T4 GPU quota approval.
 
 ---
@@ -74,7 +74,7 @@ Important:
 
 - The original benchmark box was instance `34883373` in New Jersey.
 - The current live Chatterbox endpoint is on a newer instance:
-  - Vast instance ID `34958086`
+  - Vast instance ID `34960563`
   - Texas RTX 4090
   - about `$0.2967/hr`
 - Always re-check [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)

@@ -322,12 +322,20 @@ Most important technical finding:
 
 ## FastAPI Smoke Test (April 14, 2026)
 
+This section records the first successful FastAPI smoke test on the earlier
+New Jersey box. It is now historical only.
+
+For the currently live endpoint and current instance details, see:
+
+- [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)
+
 After the direct-package benchmark, the real FastAPI serving path was validated
 on the same RTX 4090 instance.
 
 ### Chatterbox FastAPI smoke test
 
-All three endpoints hit from a local Mac against `http://71.104.167.38:52328`:
+All three endpoints hit from a local Mac against the earlier endpoint
+`http://71.104.167.38:52328`:
 
 | Endpoint | Result | Detail |
 |---|---|---|
@@ -376,4 +384,5 @@ has not been started and hit on GPU.
    - confirm official recommended runtime flags
    - try `flash_attention_2` attention impl
    - check whether streaming/community path reproduces advertised numbers
-5. **Shut down instance `34883373`** when done to stop the $0.39/hr charge.
+5. Shut down whichever Vast instance is currently active when done testing.
+   Do not assume `34883373` is still the live box.

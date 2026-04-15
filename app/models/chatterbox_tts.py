@@ -55,6 +55,7 @@ class ChatterboxTTSModel(TTSModel):
 
         device = self._normalized_device()
         try:
+            self._ensure_perth_watermarker()
             if self.mode == "english":
                 from chatterbox.tts import ChatterboxTTS
 
@@ -117,3 +118,32 @@ class ChatterboxTTSModel(TTSModel):
 
     def _normalized_device(self) -> str:
         return "cuda" if self.device.startswith("cuda") else self.device
+
+    def _ensure_perth_watermarker(self) -> None:
+        """Repair Perth's package-level export when it is left unset.
+
+        On some runtime stacks, `perth.__init__` swallows an ImportError and
+        leaves `PerthImplicitWatermarker = None`, even though the underlying
+        implementation can still be imported directly. Chatterbox then crashes
+        during startup when it blindly calls that attribute.
+        """
+        import perth
+
+        if getattr(perth, "PerthImplicitWatermarker", None) is not None:
+            return
+
+        try:
+            from perth.perth_net.perth_net_implicit.perth_watermarker import (
+                PerthImplicitWatermarker,
+            )
+
+            perth.PerthImplicitWatermarker = PerthImplicitWatermarker
+            logger.warning("chatterbox_perth_repaired_via_direct_import")
+            return
+        except Exception:
+            logger.exception("chatterbox_perth_direct_import_failed")
+
+        from perth.dummy_watermarker import DummyWatermarker
+
+        perth.PerthImplicitWatermarker = DummyWatermarker
+        logger.warning("chatterbox_perth_falling_back_to_dummy_watermarker")
