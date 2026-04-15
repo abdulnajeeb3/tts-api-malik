@@ -92,10 +92,10 @@ print('8000->',i.get('ports',{}).get('8000/tcp'))
 Export the connection values for the rest of the run:
 
 ```bash
-export SSH_HOST=ssh7.vast.ai   # from output
-export SSH_PORT=38086          # from output
+export SSH_HOST=ssh6.vast.ai   # from output
+export SSH_PORT=10562          # from output
 export IP=57.132.208.22        # from output
-export PORT_8000=23093         # from output (host port mapped to container 8000)
+export PORT_8000=23106         # from output (host port mapped to container 8000)
 ```
 
 Verify SSH:

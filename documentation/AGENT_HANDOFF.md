@@ -54,7 +54,7 @@
   - `POST /v1/audio/speech` → 200, 192 KB WAV, `X-TTFA-Ms=7335`
   - `WS /v1/audio/stream` → 17 chunks, 117120 bytes, TTFA 820 ms
 - Current public URL confirmed reachable from local Mac on **April 14, 2026**:
-  `http://57.132.208.22:23093`
+  `http://57.132.208.22:23106`
 
 ### Not yet fully validated
 
@@ -89,7 +89,7 @@ While waiting:
 
 1. Share the pre-generated Chatterbox WAVs with the friend:
    `benchmark/vast_4090_2026-04-13/chatterbox_full_output/*.wav`
-2. OR point them at `http://57.132.208.22:23093` with key `dev-local-key-change-me`
+2. OR point them at `http://57.132.208.22:23106` with key `dev-local-key-change-me`
 
 After feedback:
 
@@ -102,7 +102,7 @@ After feedback:
 Also remaining:
 
 - Update the tracked docs with the current Texas instance details and push
-- Stop Vast instance `34958086` to stop the ~$0.30/hr burn when done testing
+- Stop Vast instance `34960563` to stop the ~$0.30/hr burn when done testing
 
 ---
 
