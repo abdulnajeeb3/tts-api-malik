@@ -3,10 +3,10 @@
 > Current checkpoint for resuming work in a later session or handing the repo
 > to another agent.
 
-**Last updated:** April 14, 2026 (updated after Chatterbox FastAPI smoke test)  
+**Last updated:** April 14, 2026 (updated after Chatterbox endpoint repair on a new Vast instance)  
 **Branch:** `main`  
 **Latest pushed commit:** `236e914`  
-**Repo state at handoff:** clean working tree; one uncommitted documentation update in progress
+**Repo state at handoff:** working tree has local, uncommitted updates from the Chatterbox endpoint repair pass
 
 ---
 
@@ -51,9 +51,10 @@
 
 - **Chatterbox FastAPI smoke test complete** on Vast.ai RTX 4090:
   - `GET /health` → 200, model loaded
-  - `POST /v1/audio/speech` → 200, 186 KB WAV, 2.2s
-  - `WS /v1/audio/stream` → 15 chunks, 101 KB, TTFA 1.1s
-- Public URL confirmed reachable from local Mac: `http://71.104.167.38:52328`
+  - `POST /v1/audio/speech` → 200, 192 KB WAV, `X-TTFA-Ms=7335`
+  - `WS /v1/audio/stream` → 17 chunks, 117120 bytes, TTFA 820 ms
+- Current public URL confirmed reachable from local Mac on **April 14, 2026**:
+  `http://57.132.208.22:23093`
 
 ### Not yet fully validated
 
@@ -73,6 +74,9 @@
    bakeoff.
 5. Chatterbox worked on Vast, but its runtime needed CUDA library path fixes in
    the isolated virtualenv setup there.
+6. Chatterbox also needed a Perth repair path in
+   [app/models/chatterbox_tts.py](../app/models/chatterbox_tts.py) because
+   `perth.PerthImplicitWatermarker` was unset during startup on the Texas box.
 
 ---
 
@@ -85,7 +89,7 @@ While waiting:
 
 1. Share the pre-generated Chatterbox WAVs with the friend:
    `benchmark/vast_4090_2026-04-13/chatterbox_full_output/*.wav`
-2. OR point them at `http://71.104.167.38:52328` with key `dev-local-key-change-me`
+2. OR point them at `http://57.132.208.22:23093` with key `dev-local-key-change-me`
 
 After feedback:
 
@@ -97,7 +101,8 @@ After feedback:
 
 Also remaining:
 
-- Stop Vast instance `34883373` to stop the $0.39/hr burn when done testing
+- Update the tracked docs with the current Texas instance details and push
+- Stop Vast instance `34958086` to stop the ~$0.30/hr burn when done testing
 
 ---
 
@@ -105,11 +110,12 @@ Also remaining:
 
 1. [documentation/PROJECT_STATUS.md](./PROJECT_STATUS.md)
 2. [documentation/VAST_BENCHMARK_STATUS.md](./VAST_BENCHMARK_STATUS.md)
-3. [documentation/FRIEND_TESTING_GUIDE.md](./FRIEND_TESTING_GUIDE.md)
-4. [app/config.py](../app/config.py)
-5. [docker-compose.yml](../docker-compose.yml)
-6. [app/models/qwen_tts.py](../app/models/qwen_tts.py)
-7. [app/models/chatterbox_tts.py](../app/models/chatterbox_tts.py)
+3. [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md)
+4. [documentation/FRIEND_TESTING_GUIDE.md](./FRIEND_TESTING_GUIDE.md)
+5. [app/config.py](../app/config.py)
+6. [docker-compose.yml](../docker-compose.yml)
+7. [app/models/qwen_tts.py](../app/models/qwen_tts.py)
+8. [app/models/chatterbox_tts.py](../app/models/chatterbox_tts.py)
 
 ---
 

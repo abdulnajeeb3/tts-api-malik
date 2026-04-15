@@ -1,15 +1,19 @@
 # Current Live Endpoint
 
-> Written **April 14, 2026** after the FastAPI GPU smoke test on Vast.ai.
-> This file is intentionally ephemeral — update it every time you spin up or
-> tear down a GPU instance.
+> Updated **April 14, 2026** after repairing and relaunching the Chatterbox
+> FastAPI service on the current Vast.ai instance.
+> This file is intentionally ephemeral. Update it every time you rotate
+> instances, change ports, or shut the endpoint down.
 
 ---
 
 ## Status
 
-**Chatterbox service: LIVE** (as of April 14, 2026, ~19:00 UTC)  
-**Qwen3-TTS service: NOT YET SERVED via FastAPI** (only via direct benchmark harness)
+**Chatterbox service: LIVE**  
+Verified on **April 14, 2026** from local Mac and from inside the remote venv.
+
+**Qwen3-TTS service: NOT YET SERVED via FastAPI**  
+Qwen only has direct-benchmark validation right now.
 
 ---
 
@@ -19,45 +23,72 @@
 |---|---|
 | Provider | Vast.ai |
 | GPU | RTX 4090 (24 GB VRAM) |
-| Instance ID | `34883373` |
-| Region | New Jersey, US |
-| Public IP | `71.104.167.38` |
-| REST port | `52328` (maps to container port 8000) |
-| SSH port | `52292` |
-| Rate | ~$0.39/hr |
+| Instance ID | `34960563` |
+| Label | `tts-v3` |
+| Region | Texas, US |
+| Public IP | `57.132.208.22` |
+| REST port | `23106` (maps to container port 8000) |
+| Proxy SSH host | `ssh6.vast.ai` |
+| Proxy SSH port | `10562` |
+| Hourly rate | ~$0.2967/hr |
 
 **Base URL (REST):**
 
-```
-http://71.104.167.38:52328
+```text
+http://57.132.208.22:23106
 ```
 
 **Base URL (WebSocket):**
 
-```
-ws://71.104.167.38:52328
+```text
+ws://57.132.208.22:23106
 ```
 
 ---
 
 ## API Key
 
-```
+```text
 dev-local-key-change-me
 ```
 
-Send as header: `X-API-Key: dev-local-key-change-me`
+Use header: `X-API-Key: dev-local-key-change-me`
+
+---
+
+## Verified Smoke Tests
+
+Validated on **April 14, 2026**.
+
+| Test | Result | Notes |
+|---|---|---|
+| `GET /health` | 200 OK | `models_loaded = ["chatterbox"]` |
+| `POST /v1/audio/speech` | 200 OK | 117164-byte WAV, `X-TTFA-Ms=5837`, `X-Total-Ms=5838` |
+| `WS /v1/audio/stream` | pending | skipped on this rebuild, REST path already validated |
+
+Current health response:
+
+```json
+{
+  "status": "ok",
+  "models_loaded": ["chatterbox"],
+  "gpu_memory_used_gb": 3.48,
+  "gpu_memory_total_gb": 23.52,
+  "active_connections": 0,
+  "version": "0.1.0"
+}
+```
 
 ---
 
 ## Quick Smoke Test Commands
 
 ```bash
-# Health check
-curl http://71.104.167.38:52328/health
+curl http://57.132.208.22:23106/health
+```
 
-# Generate a WAV (saves to chatterbox_live.wav)
-curl -X POST http://71.104.167.38:52328/v1/audio/speech \
+```bash
+curl -X POST http://57.132.208.22:23106/v1/audio/speech \
   -H "X-API-Key: dev-local-key-change-me" \
   -H "Content-Type: application/json" \
   -d '{
@@ -72,42 +103,53 @@ curl -X POST http://71.104.167.38:52328/v1/audio/speech \
 
 ---
 
-## Validated Smoke Test Results (April 14, 2026)
+## Streaming Smoke Test
 
-All three endpoints were hit from a local Mac against the Vast RTX 4090.
+Request payload:
 
-| Test | Result | Notes |
-|---|---|---|
-| `GET /health` | 200 OK | model = chatterbox, status = loaded |
-| `POST /v1/audio/speech` | 200 OK | 186 KB WAV, 2.2s wall time |
-| `WS /v1/audio/stream` | 15 chunks, 101 KB | TTFA 1.1s |
+```json
+{
+  "model": "chatterbox",
+  "input": "Please hold for just a moment while I transfer you.",
+  "voice": "default",
+  "format": "pcm",
+  "sample_rate": 24000,
+  "speed": 1.0
+}
+```
 
-VRAM at load time: **3.47 / 23.52 GB used** — plenty of headroom.
+Final frame received:
 
-Round-trip from local Mac (including network): **2.7s** for a 4-second phrase.
+```json
+{
+  "done": true,
+  "request_id": "552ae11a-baa7-446b-988c-47f51025eb42",
+  "ttfa_ms": 820,
+  "total_ms": 823,
+  "bytes": 117120
+}
+```
 
 ---
 
-## Watchdog
+## Remote Runtime Notes
 
-A local watchdog process keeps the instance from running indefinitely.
+The service is launched via `/workspace/launch_chatterbox.sh` and uses:
 
-- Script: `scripts/vast_watchdog.sh`
-- Heartbeat file: `/tmp/vast_keepalive`
-- Stale threshold: 900s (15 min)
-- Hard cap: 10800s (3 hr from watchdog start)
-- Instance is destroyed automatically if heartbeat goes stale
+- `/workspace/venvs/chatterbox`
+- `/workspace/TTS-API-Malik`
+- a patched [app/models/chatterbox_tts.py](../app/models/chatterbox_tts.py)
 
-To keep the instance alive while you work:
+The critical repair was:
 
-```bash
-touch /tmp/vast_keepalive
-```
+- ensure `perth.PerthImplicitWatermarker` is repaired via direct import before
+  Chatterbox model load
+- fall back to `DummyWatermarker` only if the direct Perth import still fails
 
-To stop the watchdog WITHOUT destroying the instance:
+Without that repair, startup failed with:
 
-```bash
-pkill -f vast_watchdog.sh   # while leaving the heartbeat file in place
+```text
+TypeError: 'NoneType' object is not callable
 ```
 
 ---
@@ -120,57 +162,19 @@ ssh -A \
   -o IdentitiesOnly=yes \
   -o PreferredAuthentications=publickey \
   -i ~/.ssh/vast_benchmark_ed25519 \
-  -p 52292 root@71.104.167.38
+  -p 38086 root@ssh7.vast.ai
 ```
 
 ---
 
-## What Is Running Remotely
+## Shut It Down When Done
 
-The Chatterbox service was started via `/workspace/launch_chatterbox.sh`:
+Destroy via Vast CLI or portal when the friend has finished testing.
 
-```bash
-#!/bin/bash
-export LD_LIBRARY_PATH=\
-/workspace/venvs/chatterbox/lib/python3.11/site-packages/nvidia/cudnn/lib:\
-/workspace/venvs/chatterbox/lib/python3.11/site-packages/nvidia/cufft/lib:\
-/workspace/venvs/chatterbox/lib/python3.11/site-packages/nvidia/cublas/lib:\
-$LD_LIBRARY_PATH
-
-source /workspace/venvs/chatterbox/bin/activate
-cd /workspace/TTS-API-Malik
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info
-```
-
-The `.env` file on the remote:
-
-```
-HOST=0.0.0.0
-PORT=8000
-API_KEYS=dev-local-key-change-me
-ENABLED_MODELS=chatterbox
-HF_HOME=/workspace/hf_cache
-CHATTERBOX_DEVICE=cuda:0
-USE_MOCK_MODELS=0
-DEFAULT_REST_FORMAT=wav
-```
-
----
-
-## Spend Tracking
-
-- Rate: $0.39/hr
-- Running since: April 13, 2026
-- At time of handoff (April 14, ~19:00 UTC): approximately $0.50–0.80 spent
-- Remaining Vast credit at session start: $2.03
-
-Shut down the instance when the friend has finished testing:
+Example via API key:
 
 ```bash
-# Destroy via API (uses ~/.config/vastai/vast_api_key):
 curl -s -X DELETE \
   -H "Authorization: Bearer $(cat ~/.config/vastai/vast_api_key)" \
-  "https://console.vast.ai/api/v0/instances/34883373/"
+  "https://console.vast.ai/api/v0/instances/34960563/"
 ```
-
-Or from the Vast.ai web console.

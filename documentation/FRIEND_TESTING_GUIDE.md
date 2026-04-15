@@ -13,7 +13,7 @@
 **Chatterbox** is live on Vast.ai:
 
 ```
-http://71.104.167.38:52328
+http://57.132.208.22:23106
 ```
 
 API key: `dev-local-key-change-me`
@@ -129,7 +129,7 @@ Qwen: *(not yet live via FastAPI — use pre-generated samples above)*
 Chatterbox *(live now)*:
 
 ```bash
-curl -X POST "http://71.104.167.38:52328/v1/audio/speech" \
+curl -X POST "http://57.132.208.22:23106/v1/audio/speech" \
   -H "X-API-Key: dev-local-key-change-me" \
   -H "Content-Type: application/json" \
   -d '{
@@ -206,7 +206,7 @@ import websockets
 
 
 async def main():
-    uri = "ws://71.104.167.38:52328/v1/audio/stream?api_key=dev-local-key-change-me"
+    uri = "ws://57.132.208.22:23106/v1/audio/stream?api_key=dev-local-key-change-me"
     request = {
         "model": "chatterbox",
         "input": "Please hold for just a moment while I transfer you.",
@@ -248,7 +248,7 @@ the Chatterbox service.
 
 Use language like this:
 
-`I’m giving you one model endpoint at a time. Hit /v1/audio/speech for full audio responses and /v1/audio/stream for WebSocket PCM streaming. Use the X-API-Key header I send you. Qwen is on :8000 and Chatterbox is on :8001, but only one may be live at a time depending on which model I’m exposing for the current test.`
+`I’m giving you one model endpoint at a time. For the current Chatterbox test, use http://57.132.208.22:23106. Hit /v1/audio/speech for full audio responses and /v1/audio/stream for WebSocket PCM streaming. Use the X-API-Key header I send you.`
 
 ---
 
@@ -257,7 +257,10 @@ Use language like this:
 - This is not an ElevenLabs-compatible API surface.
 - Each model has its own service because shared-runtime dependency conflicts
   are real and will recur as more models are added.
-- Chatterbox was validated end-to-end through the FastAPI serving path on April
+- Chatterbox was validated end-to-end through the FastAPI serving path on April 14, 2026.
+- The live endpoint may change whenever the Vast instance is rotated, so always
+  re-check [documentation/CURRENT_ENDPOINT.md](./CURRENT_ENDPOINT.md) before
+  sending someone a URL.
   14, 2026 (all three endpoints green on RTX 4090).
 - Qwen3-TTS still needs a FastAPI smoke test. The direct-package benchmark
   worked, but the FastAPI wrapper has not yet been hit on GPU.
